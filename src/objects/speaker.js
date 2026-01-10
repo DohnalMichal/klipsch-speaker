@@ -29,7 +29,7 @@ export const materials = [
 // Speaker dimensions (scale: 1 unit = 10cm)
 export const speakerDimensions = {
   width: 1.7,
-  height: 9.17,
+  height: 7.17,
   depth: 3.75,
 };
 
@@ -46,6 +46,10 @@ export const wooferSettings = {
   radius: 1.45 / 2, // 14.5cm diameter
   yFromBottom: 4.0, // 40cm from bottom
   protrusion: 0.5, // how far the dome sticks out
+  segments: 64, // sphere resolution (higher = smoother)
+  // Rubber surround (torus)
+  surroundRadius: 0.55, // distance from center to tube center
+  surroundTube: 0.07, // tube thickness
 };
 
 function createGrilleShape() {
@@ -72,10 +76,17 @@ const cabinetGeometry = new THREE.BoxGeometry(
 export const cabinet = new THREE.Mesh(cabinetGeometry, materials);
 cabinet.name = "cabinet";
 
-// Grille (rubber bevel frame)
-export const rubberMaterial = new THREE.MeshStandardMaterial({
+// Grille material (slightly shiny)
+export const grilleMaterial = new THREE.MeshStandardMaterial({
   color: "#1a1a1a",
-  roughness: 0.9,
+  roughness: 0.4,
+  metalness: 0.2,
+});
+
+// Woofer surround material (rubbery)
+export const surroundMaterial = new THREE.MeshStandardMaterial({
+  color: "#0a0a0a",
+  roughness: 0.95,
   metalness: 0.0,
 });
 
@@ -88,7 +99,7 @@ function createGrilleWithHole() {
     ...bevelSettings,
     bevelEnabled: true,
   });
-  const grilleBrush = new Brush(grilleGeometry, rubberMaterial);
+  const grilleBrush = new Brush(grilleGeometry, grilleMaterial);
   grilleBrush.position.z = speakerDimensions.depth / 2;
   grilleBrush.updateMatrixWorld();
 
@@ -97,7 +108,11 @@ function createGrilleWithHole() {
 
   // Create woofer sphere brush for subtraction
   // Position sphere forward so it protrudes, creating a dome-shaped cutout
-  const wooferGeometry = new THREE.SphereGeometry(wooferSettings.radius, 32, 32);
+  const wooferGeometry = new THREE.SphereGeometry(
+    wooferSettings.radius,
+    wooferSettings.segments,
+    wooferSettings.segments,
+  );
   const wooferBrush = new Brush(wooferGeometry);
   wooferBrush.position.set(0, wooferY, speakerDimensions.depth / 2 + wooferSettings.protrusion);
   wooferBrush.updateMatrixWorld();
@@ -113,18 +128,36 @@ function createGrilleWithHole() {
   return result.geometry;
 }
 
-export const grille = new THREE.Mesh(createGrilleWithHole(), rubberMaterial);
+export const grille = new THREE.Mesh(createGrilleWithHole(), grilleMaterial);
 grille.name = "grille";
+
+// Woofer rubber surround (torus)
+const wooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
+
+const surroundGeometry = new THREE.TorusGeometry(wooferSettings.surroundRadius, wooferSettings.surroundTube, 24, 64);
+export const wooferSurround = new THREE.Mesh(surroundGeometry, surroundMaterial);
+wooferSurround.name = "wooferSurround";
+wooferSurround.rotation.x = -Math.PI; // rotate to face forward (flipped)
+// Position at grille surface where the sphere dome ends
+wooferSurround.position.set(0, wooferY, speakerDimensions.depth / 2);
 
 // Speaker group
 export const speaker = new THREE.Group();
 speaker.name = "speaker";
 speaker.add(cabinet);
 speaker.add(grille);
+speaker.add(wooferSurround);
 speaker.userData.bevelSettings = bevelSettings;
 scene.add(speaker);
 
 export function rebuildGrille() {
   grille.geometry.dispose();
   grille.geometry = createGrilleWithHole();
+
+  // Update woofer surround position and geometry
+  const newWooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
+  wooferSurround.position.set(0, newWooferY, speakerDimensions.depth / 2);
+
+  wooferSurround.geometry.dispose();
+  wooferSurround.geometry = new THREE.TorusGeometry(wooferSettings.surroundRadius, wooferSettings.surroundTube, 24, 64);
 }
