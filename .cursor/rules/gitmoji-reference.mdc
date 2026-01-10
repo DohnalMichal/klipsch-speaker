@@ -1,0 +1,67 @@
+---
+alwaysApply: true
+---
+
+# Gitmoji Commit Reference
+
+Always start commits with **one emoji** that represents the intent of the change.
+
+## Core Changes
+
+- ✨ feat — introduce a new feature
+- 🐛 fix — fix a bug
+- 🚑 hotfix — critical fix for production
+- 🚀 perf — improve performance
+- ♻️ refactor — refactor code without changing behavior
+- 🔧 config — change configuration files
+- 🔥 remove — remove code or files
+
+## Code Quality & Maintenance
+
+- 🎨 style — formatting, linting, no logic change
+- 🧹 chore — maintenance tasks, tooling, dependencies
+- ⚡ perf — optimize speed or efficiency
+- 🚨 lint — fix compiler or linter warnings
+
+## Documentation & Examples
+
+- 📝 docs — documentation only changes
+- 💡 comments — add or update code comments
+- 📖 docs — extended documentation or guides
+
+## Testing
+
+- ✅ test — add, update, or fix tests
+- 🧪 test — experimental or exploratory tests
+
+## Dependencies & Build
+
+- ⬆️ deps — upgrade dependencies
+- ⬇️ deps — downgrade dependencies
+- 📦 build — build system or external dependencies
+- 👷 ci — CI/CD configuration changes
+
+## UI & Assets
+
+- 💄 ui — UI or styling updates
+- 🎨 assets — images, icons, or static resources
+- ♿ a11y — accessibility improvements
+
+## Security & Data
+
+- 🔒 security — fix security issues
+- 🔐 secrets — manage secrets or credentials
+- 🗃️ data — database or data-related changes
+
+## Reverts & Misc
+
+- ⏪ revert — revert a previous commit
+- 🏷️ release — versioning or releases
+- 🚧 wip — work in progress (avoid if possible)
+
+## Commit Format
+
+<emoji> <type>: <short, present-tense description>
+
+Example:
+✨ feat: add password reset flow

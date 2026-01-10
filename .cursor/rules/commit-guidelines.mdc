@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+
+# Commit Message Guidelines
+
+Always use **gitmoji** (see [gitmoji reference](./gitmoji-reference.md)) at the start of every commit.
+
+## Format
+
+<emoji> <type>: <short, clear description>
+
+## Rules
+
+- Use **present tense** (“add”, not “added”)
+- Keep the subject **≤ 72 characters**
+- One commit = **one logical change**
+- Be specific, avoid vague messages
+
+## Common Examples
+
+- ✨ feat: add user authentication flow
+- 🐛 fix: resolve crash on empty input
+- ♻️ refactor: simplify payment validation logic
+- 📝 docs: update API usage examples
+- 🚀 perf: improve query execution time
+- ✅ test: add coverage for edge cases
+
+## Bad Examples
+
+- ❌ update stuff
+- ❌ fixed bug
+- ❌ changes
+
+When unsure, pick the emoji that best represents the **intent** of the change.

@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+
+# Three.js Project Rules (Cursor)
+
+- Follow existing project patterns; avoid unrelated refactors.
+- Render loop must not allocate per frame (no new Vector3/Matrix4/etc. inside tick).
+- Any created GPU resource must be disposed on teardown (geometry/material/texture/renderTargets).
+- Do not add dependencies unless requested.
+- Keep resize handling correct: camera aspect+updateProjectionMatrix, renderer size, composer size.
+- Prefer instancing or batching for many repeated objects.
+- Shadows are opt-in and must be justified; keep shadow settings conservative.
+- Reference local docs:
+  - `cursor/rules/commit-guidelines.mdc`
+  - `cursor/rules/gitmoji-reference.mdc`
