@@ -7,6 +7,7 @@ import {
   rebuildGrille,
   rubberMaterial,
   speaker,
+  wooferSettings,
 } from "../objects/speaker.js";
 
 import GUI from "lil-gui";
@@ -53,3 +54,9 @@ grilleTweaks.add(bevelSettings, "depth").min(0).max(0.5).step(0.01).onChange(reb
 grilleTweaks.add(bevelSettings, "bevelThickness").min(0).max(0.3).step(0.01).onChange(rebuildGrille);
 grilleTweaks.add(bevelSettings, "bevelSize").min(0).max(0.3).step(0.01).onChange(rebuildGrille);
 grilleTweaks.add(bevelSettings, "bevelSegments").min(1).max(10).step(1).onChange(rebuildGrille);
+
+// Woofer tweaks
+const wooferTweaks = gui.addFolder("Woofer");
+wooferTweaks.add(wooferSettings, "radius").min(0.1).max(1.5).step(0.01).name("radius").onChange(rebuildGrille);
+wooferTweaks.add(wooferSettings, "yFromBottom").min(0.5).max(8).step(0.1).name("Y from bottom").onChange(rebuildGrille);
+wooferTweaks.add(wooferSettings, "protrusion").min(0).max(1).step(0.01).name("protrusion").onChange(rebuildGrille);

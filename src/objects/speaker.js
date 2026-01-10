@@ -1,6 +1,7 @@
 import { scene } from "../core/scene.js";
 
 import * as THREE from "three";
+import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
 
 const textureLoader = new THREE.TextureLoader();
 
@@ -25,10 +26,12 @@ export const materials = [
   new THREE.MeshStandardMaterial({ map: rotatedTexture }), // back
 ];
 
-// Speaker dimensions
-const speakerWidth = 2.7;
-const speakerHeight = 9.17;
-const speakerDepth = 3.75;
+// Speaker dimensions (scale: 1 unit = 10cm)
+export const speakerDimensions = {
+  width: 1.7,
+  height: 9.17,
+  depth: 3.75,
+};
 
 // Grille bevel settings
 export const bevelSettings = {
@@ -38,9 +41,16 @@ export const bevelSettings = {
   bevelSegments: 1,
 };
 
+// Woofer settings (scale: 1 unit = 10cm)
+export const wooferSettings = {
+  radius: 1.45 / 2, // 14.5cm diameter
+  yFromBottom: 4.0, // 40cm from bottom
+  protrusion: 0.5, // how far the dome sticks out
+};
+
 function createGrilleShape() {
-  const width = speakerWidth - 2 * bevelSettings.bevelSize;
-  const height = speakerHeight - 2 * bevelSettings.bevelSize;
+  const width = speakerDimensions.width - 2 * bevelSettings.bevelSize;
+  const height = speakerDimensions.height - 2 * bevelSettings.bevelSize;
   const shape = new THREE.Shape();
   shape.moveTo(-width / 2, -height / 2);
   shape.lineTo(width / 2, -height / 2);
@@ -51,7 +61,14 @@ function createGrilleShape() {
 }
 
 // Cabinet (wooden box)
-const cabinetGeometry = new THREE.BoxGeometry(speakerWidth, speakerHeight, speakerDepth, 2, 2, 2);
+const cabinetGeometry = new THREE.BoxGeometry(
+  speakerDimensions.width,
+  speakerDimensions.height,
+  speakerDimensions.depth,
+  2,
+  2,
+  2,
+);
 export const cabinet = new THREE.Mesh(cabinetGeometry, materials);
 cabinet.name = "cabinet";
 
@@ -62,12 +79,42 @@ export const rubberMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.0,
 });
 
-export const grille = new THREE.Mesh(
-  new THREE.ExtrudeGeometry(createGrilleShape(), { ...bevelSettings, bevelEnabled: true }),
-  rubberMaterial,
-);
+// CSG evaluator for boolean operations
+const csgEvaluator = new Evaluator();
+
+function createGrilleWithHole() {
+  // Create grille brush
+  const grilleGeometry = new THREE.ExtrudeGeometry(createGrilleShape(), {
+    ...bevelSettings,
+    bevelEnabled: true,
+  });
+  const grilleBrush = new Brush(grilleGeometry, rubberMaterial);
+  grilleBrush.position.z = speakerDimensions.depth / 2;
+  grilleBrush.updateMatrixWorld();
+
+  // Calculate woofer Y position
+  const wooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
+
+  // Create woofer sphere brush for subtraction
+  // Position sphere forward so it protrudes, creating a dome-shaped cutout
+  const wooferGeometry = new THREE.SphereGeometry(wooferSettings.radius, 32, 32);
+  const wooferBrush = new Brush(wooferGeometry);
+  wooferBrush.position.set(0, wooferY, speakerDimensions.depth / 2 + wooferSettings.protrusion);
+  wooferBrush.updateMatrixWorld();
+
+  // Subtract woofer from grille
+  const result = csgEvaluator.evaluate(grilleBrush, wooferBrush, SUBTRACTION);
+  result.geometry.computeVertexNormals();
+
+  // Clean up
+  grilleGeometry.dispose();
+  wooferGeometry.dispose();
+
+  return result.geometry;
+}
+
+export const grille = new THREE.Mesh(createGrilleWithHole(), rubberMaterial);
 grille.name = "grille";
-grille.position.z = speakerDepth / 2;
 
 // Speaker group
 export const speaker = new THREE.Group();
@@ -79,8 +126,5 @@ scene.add(speaker);
 
 export function rebuildGrille() {
   grille.geometry.dispose();
-  grille.geometry = new THREE.ExtrudeGeometry(createGrilleShape(), {
-    ...bevelSettings,
-    bevelEnabled: true,
-  });
+  grille.geometry = createGrilleWithHole();
 }
