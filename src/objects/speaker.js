@@ -75,6 +75,7 @@ const cabinetGeometry = new THREE.BoxGeometry(
 );
 export const cabinet = new THREE.Mesh(cabinetGeometry, materials);
 cabinet.name = "cabinet";
+cabinet.castShadow = true;
 
 // Grille material (slightly shiny)
 export const grilleMaterial = new THREE.MeshStandardMaterial({
@@ -130,6 +131,7 @@ function createGrilleWithHole() {
 
 export const grille = new THREE.Mesh(createGrilleWithHole(), grilleMaterial);
 grille.name = "grille";
+grille.castShadow = true;
 
 // Woofer rubber surround (torus)
 const wooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
@@ -137,6 +139,7 @@ const wooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
 const surroundGeometry = new THREE.TorusGeometry(wooferSettings.surroundRadius, wooferSettings.surroundTube, 24, 64);
 export const wooferSurround = new THREE.Mesh(surroundGeometry, surroundMaterial);
 wooferSurround.name = "wooferSurround";
+wooferSurround.castShadow = true;
 wooferSurround.rotation.x = -Math.PI; // rotate to face forward (flipped)
 // Position at grille surface where the sphere dome ends
 wooferSurround.position.set(0, wooferY, speakerDimensions.depth / 2);
