@@ -9,7 +9,9 @@ A Three.js visualization of the **Klipsch RP-5000F II Ebony** floor-standing spe
 ## Features
 
 - 🔊 Speaker cabinet with ebony wood texture
-- 🖼️ Beveled rubber grille frame
+- 🖼️ Beveled rubber grille frame with CSG cutouts
+- 🥁 Dual woofers with brushed copper cones & rubber surrounds
+- 💫 Decorative copper rings around woofer protrusions
 - 🎮 Orbit controls for 3D exploration
 - 📐 Camera position persisted in URL
 - 🛠️ Debug GUI for tweaking lights, materials & geometry
@@ -31,16 +33,30 @@ yarn build
 
 ```
 src/
-├── main.js           # Entry point, render loop
+├── main.js              # Entry point, render loop
 ├── core/
-│   ├── scene.js      # Scene, camera, renderer, controls
-│   └── lights.js     # Lighting setup
+│   ├── scene.js         # Scene, camera, renderer, controls
+│   └── lights.js        # HDRI environment & light sources
 ├── objects/
-│   ├── speaker.js    # Speaker cabinet & grille meshes
-│   └── floor.js      # Floor plane
+│   ├── speaker.js       # Speaker assembly (see below)
+│   └── floor.js         # Floor plane
 └── debug/
-    └── gui.js        # lil-gui debug panel
+    └── gui.js           # lil-gui debug panel
 ```
+
+### Speaker Module (`speaker.js`)
+
+The speaker is organized into clear sections:
+
+| Section | Contents |
+|---------|----------|
+| **Configuration** | Dimensions, bevel settings, woofer settings, positions |
+| **Textures** | Ebony wood, brushed copper |
+| **Materials** | Cabinet faces, grille, surround, cone, decorative ring |
+| **Geometry Helpers** | UV projection, shape creation, position helpers |
+| **CSG Operations** | Boolean subtractions for woofer & cone holes |
+| **Mesh Assembly** | Cabinet, grille, woofer groups |
+| **Public API** | `rebuildGrille()` for live geometry updates |
 
 ## License
 
