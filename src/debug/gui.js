@@ -3,6 +3,7 @@ import {
   bevelSettings,
   cabinet,
   coneMaterial,
+  debugTube,
   grille,
   grilleMaterial,
   materials,
@@ -37,6 +38,7 @@ speakerTweaks.add(speaker.rotation, "y").min(-Math.PI).max(Math.PI).step(0.01).n
 speakerTweaks.add(speaker, "visible").name("visible");
 speakerTweaks.add(cabinet, "visible").name("cabinet visible");
 speakerTweaks.add(grille, "visible").name("grille visible");
+speakerTweaks.add(debugTube, "visible").name("debug tube");
 
 const debug = { wireframe: false };
 speakerTweaks.add(debug, "wireframe").onChange((value) => {
@@ -79,7 +81,7 @@ wooferTweaks
 wooferTweaks.add(wooferSurround.rotation, "x").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot X");
 wooferTweaks.add(wooferSurround.rotation, "y").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot Y");
 wooferTweaks.add(wooferSurround.rotation, "z").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot Z");
-wooferTweaks.add(wooferSettings, "coneRadius").min(0.1).max(1).step(0.01).name("cone radius").onChange(rebuildGrille);
+// Note: cone radius is derived from surroundRadius - surroundTube (inner hole of surround)
 wooferTweaks
   .add(wooferSettings, "coneProtrusion")
   .min(0)
