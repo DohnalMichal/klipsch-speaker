@@ -48,12 +48,7 @@ speakerTweaks.add(debug, "wireframe").onChange((value) => {
 
 // Grille tweaks
 const grilleTweaks = gui.addFolder("Grille");
-grilleTweaks
-  .addColor({ color: "#1a1a1a" }, "color")
-  .name("color")
-  .onChange((value) => {
-    grilleMaterial.color.set(value);
-  });
+grilleTweaks.addColor(grilleMaterial, "color");
 grilleTweaks.add(grilleMaterial, "roughness").min(0).max(1).step(0.01);
 grilleTweaks.add(grilleMaterial, "metalness").min(0).max(1).step(0.01);
 grilleTweaks.add(bevelSettings, "depth").min(0).max(0.5).step(0.01).onChange(rebuildGrille);
@@ -98,22 +93,16 @@ wooferTweaks.add(wooferCone.position, "z").min(0).max(5).step(0.01).name("cone p
 
 // Surround material tweaks
 const surroundTweaks = gui.addFolder("Surround Material");
-surroundTweaks
-  .addColor({ color: "#0a0a0a" }, "color")
-  .name("color")
-  .onChange((value) => {
-    surroundMaterial.color.set(value);
-  });
+surroundTweaks.addColor(surroundMaterial, "color");
 surroundTweaks.add(surroundMaterial, "roughness").min(0).max(1).step(0.01);
 surroundTweaks.add(surroundMaterial, "metalness").min(0).max(1).step(0.01);
 
 // Cone material tweaks
 const coneTweaks = gui.addFolder("Cone Material");
-coneTweaks
-  .addColor({ color: "#cd7f32" }, "color")
-  .name("color")
-  .onChange((value) => {
-    coneMaterial.color.set(value);
-  });
+coneTweaks.addColor(coneMaterial, "color");
 coneTweaks.add(coneMaterial, "roughness").min(0).max(1).step(0.01);
 coneTweaks.add(coneMaterial, "metalness").min(0).max(1).step(0.01);
+coneTweaks.add(coneMaterial, "clearcoat").min(0).max(1).step(0.01);
+coneTweaks.add(coneMaterial, "clearcoatRoughness").min(0).max(1).step(0.01);
+coneTweaks.add(coneMaterial, "anisotropy").min(0).max(1).step(0.01);
+coneTweaks.add(coneMaterial, "anisotropyRotation").min(-Math.PI).max(Math.PI).step(0.01);

@@ -5,9 +5,7 @@ import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
 
 const textureLoader = new THREE.TextureLoader();
 
-export const ebonyTexture = textureLoader.load("/textures/ebony.jpg", () => {
-  console.log("texture loaded", ebonyTexture.image);
-});
+export const ebonyTexture = textureLoader.load("/textures/ebony.jpg");
 ebonyTexture.colorSpace = THREE.SRGBColorSpace;
 ebonyTexture.wrapS = THREE.RepeatWrapping;
 ebonyTexture.wrapT = THREE.RepeatWrapping;
@@ -16,6 +14,24 @@ ebonyTexture.repeat.set(1, 2);
 const rotatedTexture = ebonyTexture.clone();
 rotatedTexture.rotation = Math.PI / 2;
 rotatedTexture.center.set(0.5, 0.5);
+
+// Copper texture for woofer cone
+const copperTexture = textureLoader.load("/textures/circular-brushed-copper-texture.jpg");
+copperTexture.colorSpace = THREE.SRGBColorSpace;
+
+// Apply planar UV projection to a hemisphere geometry (dome pointing +Y)
+// This makes the texture project straight onto the dome like a decal
+function applyPlanarUVsToHemisphere(geometry, radius) {
+  const pos = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    // Map X,Z position to UV (0-1), centered at 0.5
+    uv.setXY(i, x / (2 * radius) + 0.5, z / (2 * radius) + 0.5);
+  }
+  uv.needsUpdate = true;
+}
 
 export const materials = [
   new THREE.MeshStandardMaterial({ map: rotatedTexture }), // right
@@ -86,11 +102,12 @@ export const surroundMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.0,
 });
 
-// Woofer cone material (bronze)
+// Woofer cone material (bronze with brushed copper texture)
 export const coneMaterial = new THREE.MeshPhysicalMaterial({
-  color: "#b87333",
-  roughness: 0.25,
-  metalness: 1,
+  map: copperTexture,
+  color: "#ffffff",
+  roughness: 0.7,
+  metalness: 0.81,
   side: THREE.DoubleSide,
 });
 
@@ -201,6 +218,7 @@ const coneGeometry = new THREE.SphereGeometry(
   0,
   Math.PI / 2, // hemisphere (half sphere)
 );
+applyPlanarUVsToHemisphere(coneGeometry, wooferSettings.coneRadius);
 export const wooferCone = new THREE.Mesh(coneGeometry, coneMaterial);
 wooferCone.name = "wooferCone";
 wooferCone.castShadow = true;
@@ -246,4 +264,5 @@ export function rebuildGrille() {
     0,
     Math.PI / 2, // hemisphere
   );
+  applyPlanarUVsToHemisphere(wooferCone.geometry, wooferSettings.coneRadius);
 }
