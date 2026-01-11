@@ -4,6 +4,9 @@ import {
   cabinet,
   coneMaterial,
   debugTube,
+  decorativeCircle,
+  decorativeCircleMaterial,
+  decorativeCircleSettings,
   grille,
   grilleMaterial,
   materials,
@@ -92,6 +95,30 @@ wooferTweaks
 wooferTweaks.add(wooferCone.position, "x").min(-1).max(1).step(0.01).name("cone pos X");
 wooferTweaks.add(wooferCone.position, "y").min(-5).max(5).step(0.01).name("cone pos Y");
 wooferTweaks.add(wooferCone.position, "z").min(0).max(5).step(0.01).name("cone pos Z");
+
+// Decorative circle tweaks
+const decorativeTweaks = gui.addFolder("Decorative Circle");
+decorativeTweaks.add(decorativeCircle, "visible").name("visible");
+decorativeTweaks
+  .add(decorativeCircleSettings, "radius")
+  .min(0.1)
+  .max(1.5)
+  .step(0.01)
+  .name("radius")
+  .onChange(rebuildGrille);
+decorativeTweaks
+  .add(decorativeCircleSettings, "tube")
+  .min(0.001)
+  .max(0.1)
+  .step(0.001)
+  .name("tube")
+  .onChange(rebuildGrille);
+decorativeTweaks.addColor(decorativeCircleMaterial, "color");
+decorativeTweaks.add(decorativeCircleMaterial, "roughness").min(0).max(1).step(0.01);
+decorativeTweaks.add(decorativeCircleMaterial, "metalness").min(0).max(1).step(0.01);
+// Texture repeat controls (U = tube cross-section, V = ring circumference)
+decorativeTweaks.add(decorativeCircleMaterial.map.repeat, "x").min(0.1).max(10).step(0.1).name("tex repeat U");
+decorativeTweaks.add(decorativeCircleMaterial.map.repeat, "y").min(1).max(32).step(1).name("tex repeat V");
 
 // Surround material tweaks
 const surroundTweaks = gui.addFolder("Surround Material");

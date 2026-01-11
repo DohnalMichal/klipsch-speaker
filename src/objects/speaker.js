@@ -71,6 +71,15 @@ rotatedTexture.center.set(0.5, 0.5);
 const copperTexture = textureLoader.load("/textures/circular-brushed-copper-texture.jpg");
 copperTexture.colorSpace = THREE.SRGBColorSpace;
 
+// Copper texture for decorative circle (adjusted for torus UV mapping)
+const decorativeCircleTexture = textureLoader.load("/textures/circular-brushed-copper-texture.jpg");
+decorativeCircleTexture.colorSpace = THREE.SRGBColorSpace;
+decorativeCircleTexture.wrapS = THREE.RepeatWrapping;
+decorativeCircleTexture.wrapT = THREE.RepeatWrapping;
+// For torus: U = around tube cross-section, V = around ring circumference
+// High V repeat for the circumference, low U for the thin tube
+decorativeCircleTexture.repeat.set(1, 12);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIALS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -111,6 +120,14 @@ export const coneMaterial = new THREE.MeshPhysicalMaterial({
   roughness: 0.7,
   metalness: 0.81,
   side: THREE.DoubleSide,
+});
+
+// Decorative circle material (brushed copper, optimized for thin torus)
+export const decorativeCircleMaterial = new THREE.MeshPhysicalMaterial({
+  map: decorativeCircleTexture,
+  color: "#ffffff",
+  roughness: 0.5,
+  metalness: 0.9,
 });
 
 /**
@@ -299,6 +316,29 @@ export const grille = new THREE.Mesh(createGrilleWithHole(), grilleMaterial);
 grille.name = "grille";
 grille.castShadow = true;
 
+/**
+ * Decorative circle ring around the woofer sphere protrusion.
+ * Sits just outside the sphere cutout edge, very thin profile.
+ */
+export const decorativeCircleSettings = {
+  radius: 0.64, // Just outside the woofer sphere
+  tube: 0.004, // Very thin tube
+  radialSegments: 32,
+  tubularSegments: 64,
+};
+
+const decorativeCircleGeometry = new THREE.TorusGeometry(
+  decorativeCircleSettings.radius,
+  decorativeCircleSettings.tube,
+  decorativeCircleSettings.radialSegments,
+  decorativeCircleSettings.tubularSegments,
+);
+
+export const decorativeCircle = new THREE.Mesh(decorativeCircleGeometry, decorativeCircleMaterial);
+decorativeCircle.name = "decorativeCircle";
+decorativeCircle.rotation.x = Math.PI; // Face forward
+decorativeCircle.position.set(0, getWooferY(), getFrontZ() + bevelSettings.bevelThickness);
+
 // Woofer rubber surround (torus ring)
 const surroundGeometry = new THREE.TorusGeometry(
   wooferSettings.surroundRadius,
@@ -356,7 +396,7 @@ debugTube.position.set(0, getWooferY(), getFrontZ());
 // Speaker group (combines all parts)
 export const speaker = new THREE.Group();
 speaker.name = "speaker";
-speaker.add(cabinet, grille, wooferSurround, wooferCone, debugTube);
+speaker.add(cabinet, grille, wooferSurround, wooferCone, decorativeCircle, debugTube);
 speaker.userData.bevelSettings = bevelSettings;
 scene.add(speaker);
 
@@ -410,4 +450,14 @@ export function rebuildGrille() {
     coneHoleCylinder.segments,
   );
   debugTube.position.set(0, wooferY, frontZ);
+
+  // Update decorative circle
+  decorativeCircle.geometry.dispose();
+  decorativeCircle.geometry = new THREE.TorusGeometry(
+    decorativeCircleSettings.radius,
+    decorativeCircleSettings.tube,
+    decorativeCircleSettings.radialSegments,
+    decorativeCircleSettings.tubularSegments,
+  );
+  decorativeCircle.position.set(0, wooferY, frontZ + bevelSettings.bevelSize);
 }
