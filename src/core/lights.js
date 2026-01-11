@@ -1,10 +1,20 @@
 import * as THREE from "three";
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { scene } from "./scene.js";
 
-export const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+const loader = new HDRLoader();
+
+loader.load("/hdr/neon_photostudio_4k.hdr", (hdr) => {
+  hdr.mapping = THREE.EquirectangularReflectionMapping;
+
+  scene.environment = hdr;
+  scene.background = null;
+});
+
+export const ambientLight = new THREE.AmbientLight(0xffffff, 3.2);
 scene.add(ambientLight);
 
-export const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+export const directionalLight = new THREE.DirectionalLight(0xffffff, 3.6);
 directionalLight.position.set(10, 8, 10);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 1024;
@@ -17,9 +27,5 @@ directionalLight.shadow.camera.top = 10;
 directionalLight.shadow.camera.bottom = -10;
 scene.add(directionalLight);
 
-export const lightHelper = new THREE.DirectionalLightHelper(
-  directionalLight,
-  2,
-  0xffff00
-);
+export const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xffff00);
 scene.add(lightHelper);

@@ -50,6 +50,9 @@ export const wooferSettings = {
   // Rubber surround (torus)
   surroundRadius: 0.55, // distance from center to tube center
   surroundTube: 0.07, // tube thickness
+  // Cone (inner sphere)
+  coneRadius: 0.45, // radius of the bronze cone
+  coneProtrusion: 0.3, // how far the cone sticks out
 };
 
 function createGrilleShape() {
@@ -64,18 +67,10 @@ function createGrilleShape() {
   return shape;
 }
 
-// Cabinet (wooden box)
-const cabinetGeometry = new THREE.BoxGeometry(
-  speakerDimensions.width,
-  speakerDimensions.height,
-  speakerDimensions.depth,
-  2,
-  2,
-  2,
-);
-export const cabinet = new THREE.Mesh(cabinetGeometry, materials);
-cabinet.name = "cabinet";
-cabinet.castShadow = true;
+// Cabinet material (front face - will be hidden by grille mostly)
+export const cabinetFrontMaterial = new THREE.MeshStandardMaterial({
+  color: "#000000",
+});
 
 // Grille material (slightly shiny)
 export const grilleMaterial = new THREE.MeshStandardMaterial({
@@ -89,6 +84,14 @@ export const surroundMaterial = new THREE.MeshStandardMaterial({
   color: "#0a0a0a",
   roughness: 0.95,
   metalness: 0.0,
+});
+
+// Woofer cone material (bronze)
+export const coneMaterial = new THREE.MeshPhysicalMaterial({
+  color: "#b87333",
+  roughness: 0.25,
+  metalness: 1,
+  side: THREE.DoubleSide,
 });
 
 // CSG evaluator for boolean operations
@@ -119,15 +122,59 @@ function createGrilleWithHole() {
   wooferBrush.updateMatrixWorld();
 
   // Subtract woofer from grille
-  const result = csgEvaluator.evaluate(grilleBrush, wooferBrush, SUBTRACTION);
+  const afterWoofer = csgEvaluator.evaluate(grilleBrush, wooferBrush, SUBTRACTION);
+
+  // Create cone sphere brush for subtraction
+  const coneGeometry = new THREE.SphereGeometry(wooferSettings.coneRadius, 48, 48, 0, Math.PI);
+  const coneBrush = new Brush(coneGeometry);
+  coneBrush.position.set(0, wooferY, speakerDimensions.depth / 2 + wooferSettings.coneProtrusion);
+  coneBrush.updateMatrixWorld();
+
+  // Subtract cone from grille
+  const result = csgEvaluator.evaluate(afterWoofer, coneBrush, SUBTRACTION);
   result.geometry.computeVertexNormals();
 
   // Clean up
   grilleGeometry.dispose();
   wooferGeometry.dispose();
+  coneGeometry.dispose();
 
   return result.geometry;
 }
+
+function createCabinetWithHole() {
+  // Create cabinet brush
+  const cabinetGeometry = new THREE.BoxGeometry(
+    speakerDimensions.width,
+    speakerDimensions.height,
+    speakerDimensions.depth,
+  );
+  const cabinetBrush = new Brush(cabinetGeometry, materials);
+  cabinetBrush.updateMatrixWorld();
+
+  // Calculate woofer Y position
+  const wooferY = -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
+
+  // Create cone sphere brush for subtraction (only cone goes through cabinet)
+  const coneGeometry = new THREE.SphereGeometry(wooferSettings.coneRadius, 48, 48);
+  const coneBrush = new Brush(coneGeometry);
+  coneBrush.position.set(0, wooferY, speakerDimensions.depth / 2 + wooferSettings.coneProtrusion);
+  coneBrush.updateMatrixWorld();
+
+  // Subtract cone from cabinet
+  const result = csgEvaluator.evaluate(cabinetBrush, coneBrush, SUBTRACTION);
+  result.geometry.computeVertexNormals();
+
+  // Clean up
+  cabinetGeometry.dispose();
+  coneGeometry.dispose();
+
+  return result.geometry;
+}
+
+export const cabinet = new THREE.Mesh(createCabinetWithHole(), materials);
+cabinet.name = "cabinet";
+cabinet.castShadow = true;
 
 export const grille = new THREE.Mesh(createGrilleWithHole(), grilleMaterial);
 grille.name = "grille";
@@ -144,16 +191,38 @@ wooferSurround.rotation.x = -Math.PI; // rotate to face forward (flipped)
 // Position at grille surface where the sphere dome ends
 wooferSurround.position.set(0, wooferY, speakerDimensions.depth / 2);
 
+// Woofer cone (bronze hemisphere - dome facing forward)
+const coneGeometry = new THREE.SphereGeometry(
+  wooferSettings.coneRadius,
+  48,
+  24,
+  0,
+  Math.PI * 2,
+  0,
+  Math.PI / 2, // hemisphere (half sphere)
+);
+export const wooferCone = new THREE.Mesh(coneGeometry, coneMaterial);
+wooferCone.name = "wooferCone";
+wooferCone.castShadow = true;
+wooferCone.rotation.x = -Math.PI / 2; // rotate hemisphere to face forward
+wooferCone.position.set(0, wooferY, speakerDimensions.depth / 2 + wooferSettings.coneProtrusion);
+
 // Speaker group
 export const speaker = new THREE.Group();
 speaker.name = "speaker";
 speaker.add(cabinet);
 speaker.add(grille);
 speaker.add(wooferSurround);
+speaker.add(wooferCone);
 speaker.userData.bevelSettings = bevelSettings;
 scene.add(speaker);
 
 export function rebuildGrille() {
+  // Rebuild cabinet with holes
+  cabinet.geometry.dispose();
+  cabinet.geometry = createCabinetWithHole();
+
+  // Rebuild grille with holes
   grille.geometry.dispose();
   grille.geometry = createGrilleWithHole();
 
@@ -163,4 +232,18 @@ export function rebuildGrille() {
 
   wooferSurround.geometry.dispose();
   wooferSurround.geometry = new THREE.TorusGeometry(wooferSettings.surroundRadius, wooferSettings.surroundTube, 24, 64);
+
+  // Update woofer cone position and geometry
+  wooferCone.position.set(0, newWooferY, speakerDimensions.depth / 2 + wooferSettings.coneProtrusion);
+
+  wooferCone.geometry.dispose();
+  wooferCone.geometry = new THREE.SphereGeometry(
+    wooferSettings.coneRadius,
+    48,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2, // hemisphere
+  );
 }

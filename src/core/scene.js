@@ -53,6 +53,8 @@ renderer.setClearColor(0x111111, 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 
 function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
