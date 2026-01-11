@@ -61,7 +61,7 @@ const wooferTweaks = gui.addFolder("Woofer");
 wooferTweaks.add(wooferSettings, "radius").min(0.1).max(1.5).step(0.01).name("radius").onChange(rebuildGrille);
 wooferTweaks.add(wooferSettings, "yFromBottom").min(0.5).max(8).step(0.1).name("Y from bottom").onChange(rebuildGrille);
 wooferTweaks.add(wooferSettings, "protrusion").min(0).max(1).step(0.01).name("protrusion").onChange(rebuildGrille);
-wooferTweaks.add(wooferSettings, "segments").min(16).max(128).step(8).name("segments").onChange(rebuildGrille);
+wooferTweaks.add(wooferSettings, "sphereSegments").min(16).max(128).step(8).name("segments").onChange(rebuildGrille);
 wooferTweaks
   .add(wooferSettings, "surroundRadius")
   .min(0.1)
