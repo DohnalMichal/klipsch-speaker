@@ -25,7 +25,6 @@ export const bevelSettings = {
 // Woofer settings (scale: 1 unit = 10cm)
 export const wooferSettings = {
   radius: 1.45 / 2, // 14.5cm diameter
-  yFromBottom: 4.0, // 40cm from bottom
   protrusion: 0.5, // how far the dome sticks out
   // Rubber surround (torus)
   surroundRadius: 0.55, // distance from center to tube center
@@ -39,6 +38,15 @@ export const wooferSettings = {
   torusRadialSegments: 32,
   torusTubularSegments: 64,
 };
+
+/**
+ * Woofer positions (Y from bottom of speaker).
+ * The speaker has two woofers at different heights.
+ */
+export const wooferPositions = [
+  { yFromBottom: 4.0 }, // Lower woofer (40cm from bottom)
+  { yFromBottom: 5.5 }, // Upper woofer (55cm from bottom)
+];
 
 /**
  * Cone radius is derived from the surround inner hole.
@@ -156,8 +164,8 @@ const coneHoleCylinder = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** Calculate woofer Y position relative to speaker center */
-function getWooferY() {
-  return -speakerDimensions.height / 2 + wooferSettings.yFromBottom;
+function getWooferY(yFromBottom) {
+  return -speakerDimensions.height / 2 + yFromBottom;
 }
 
 /** Get Z position of speaker front face */
@@ -204,9 +212,8 @@ function createGrilleShape() {
 
 const csgEvaluator = new Evaluator();
 
-/** Create grille geometry with woofer and cone holes cut out */
+/** Create grille geometry with woofer and cone holes cut out for all woofer positions */
 function createGrilleWithHole() {
-  const wooferY = getWooferY();
   const frontZ = getFrontZ();
 
   // Create grille brush
@@ -214,57 +221,63 @@ function createGrilleWithHole() {
     ...bevelSettings,
     bevelEnabled: true,
   });
-  const grilleBrush = new Brush(grilleGeometry, grilleMaterial);
-  grilleBrush.position.z = frontZ;
-  grilleBrush.updateMatrixWorld();
+  let currentBrush = new Brush(grilleGeometry, grilleMaterial);
+  currentBrush.position.z = frontZ;
+  currentBrush.updateMatrixWorld();
 
-  // Create woofer sphere brush for subtraction
-  const wooferGeometry = new THREE.SphereGeometry(
-    wooferSettings.radius,
-    wooferSettings.sphereSegments,
-    wooferSettings.sphereSegments,
-  );
-  const wooferBrush = new Brush(wooferGeometry);
-  wooferBrush.position.set(0, wooferY, frontZ + wooferSettings.protrusion);
-  wooferBrush.updateMatrixWorld();
+  const geometriesToDispose = [grilleGeometry];
 
-  // Subtract woofer from grille
-  const afterWoofer = csgEvaluator.evaluate(grilleBrush, wooferBrush, SUBTRACTION);
+  // Cut holes for each woofer position
+  for (const pos of wooferPositions) {
+    const wooferY = getWooferY(pos.yFromBottom);
 
-  // Create cylinder for cone hole cutout.
-  // This cylinder matches the cone radius and creates a clean circular hole
-  // in the grille where the woofer cone will be placed.
-  const coneHoleGeometry = new THREE.CylinderGeometry(
-    coneHoleCylinder.radius,
-    coneHoleCylinder.radius,
-    coneHoleCylinder.height,
-    coneHoleCylinder.segments,
-  );
-  // Rotate to align with Z axis (CylinderGeometry default axis is Y)
-  coneHoleGeometry.rotateX(Math.PI / 2);
+    // Create woofer sphere brush for subtraction
+    const wooferGeometry = new THREE.SphereGeometry(
+      wooferSettings.radius,
+      wooferSettings.sphereSegments,
+      wooferSettings.sphereSegments,
+    );
+    const wooferBrush = new Brush(wooferGeometry);
+    wooferBrush.position.set(0, wooferY, frontZ + wooferSettings.protrusion);
+    wooferBrush.updateMatrixWorld();
 
-  const coneHoleBrush = new Brush(coneHoleGeometry);
-  coneHoleBrush.position.set(0, wooferY, frontZ);
-  coneHoleBrush.updateMatrixWorld();
+    // Subtract woofer sphere
+    currentBrush = csgEvaluator.evaluate(currentBrush, wooferBrush, SUBTRACTION);
+    geometriesToDispose.push(wooferGeometry);
 
-  // Subtract cylinder from grille to create cone hole
-  const result = csgEvaluator.evaluate(afterWoofer, coneHoleBrush, SUBTRACTION);
-  result.geometry.computeVertexNormals();
+    // Create cylinder for cone hole cutout
+    const coneHoleGeometry = new THREE.CylinderGeometry(
+      coneHoleCylinder.radius,
+      coneHoleCylinder.radius,
+      coneHoleCylinder.height,
+      coneHoleCylinder.segments,
+    );
+    coneHoleGeometry.rotateX(Math.PI / 2);
 
-  // Clean up intermediate geometries
-  grilleGeometry.dispose();
-  wooferGeometry.dispose();
-  coneHoleGeometry.dispose();
+    const coneHoleBrush = new Brush(coneHoleGeometry);
+    coneHoleBrush.position.set(0, wooferY, frontZ);
+    coneHoleBrush.updateMatrixWorld();
 
-  return result.geometry;
+    // Subtract cylinder
+    currentBrush = csgEvaluator.evaluate(currentBrush, coneHoleBrush, SUBTRACTION);
+    geometriesToDispose.push(coneHoleGeometry);
+  }
+
+  currentBrush.geometry.computeVertexNormals();
+
+  // Clean up all intermediate geometries
+  for (const geo of geometriesToDispose) {
+    geo.dispose();
+  }
+
+  return currentBrush.geometry;
 }
 
 /**
- * Create cabinet geometry with cone hole cut out.
- * Uses the same cylinder as the grille to ensure the hole aligns perfectly.
+ * Create cabinet geometry with cone holes cut out for all woofer positions.
+ * Uses the same cylinder as the grille to ensure the holes align perfectly.
  */
 function createCabinetWithHole() {
-  const wooferY = getWooferY();
   const frontZ = getFrontZ();
 
   // Create cabinet brush
@@ -273,33 +286,41 @@ function createCabinetWithHole() {
     speakerDimensions.height,
     speakerDimensions.depth,
   );
-  const cabinetBrush = new Brush(cabinetGeometry, materials);
-  cabinetBrush.updateMatrixWorld();
+  let currentBrush = new Brush(cabinetGeometry, materials);
+  currentBrush.updateMatrixWorld();
 
-  // Create cylinder for cone hole cutout.
-  // Same cylinder as used in grille - ensures perfect alignment of holes.
-  const coneHoleGeometry = new THREE.CylinderGeometry(
-    coneHoleCylinder.radius,
-    coneHoleCylinder.radius,
-    coneHoleCylinder.height,
-    coneHoleCylinder.segments,
-  );
-  // Rotate to align with Z axis (CylinderGeometry default axis is Y)
-  coneHoleGeometry.rotateX(Math.PI / 2);
+  const geometriesToDispose = [cabinetGeometry];
 
-  const coneHoleBrush = new Brush(coneHoleGeometry);
-  coneHoleBrush.position.set(0, wooferY, frontZ);
-  coneHoleBrush.updateMatrixWorld();
+  // Cut holes for each woofer position
+  for (const pos of wooferPositions) {
+    const wooferY = getWooferY(pos.yFromBottom);
 
-  // Subtract cylinder from cabinet to create cone hole
-  const result = csgEvaluator.evaluate(cabinetBrush, coneHoleBrush, SUBTRACTION);
-  result.geometry.computeVertexNormals();
+    // Create cylinder for cone hole cutout
+    const coneHoleGeometry = new THREE.CylinderGeometry(
+      coneHoleCylinder.radius,
+      coneHoleCylinder.radius,
+      coneHoleCylinder.height,
+      coneHoleCylinder.segments,
+    );
+    coneHoleGeometry.rotateX(Math.PI / 2);
 
-  // Clean up
-  cabinetGeometry.dispose();
-  coneHoleGeometry.dispose();
+    const coneHoleBrush = new Brush(coneHoleGeometry);
+    coneHoleBrush.position.set(0, wooferY, frontZ);
+    coneHoleBrush.updateMatrixWorld();
 
-  return result.geometry;
+    // Subtract cylinder from cabinet
+    currentBrush = csgEvaluator.evaluate(currentBrush, coneHoleBrush, SUBTRACTION);
+    geometriesToDispose.push(coneHoleGeometry);
+  }
+
+  currentBrush.geometry.computeVertexNormals();
+
+  // Clean up all intermediate geometries
+  for (const geo of geometriesToDispose) {
+    geo.dispose();
+  }
+
+  return currentBrush.geometry;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -327,109 +348,58 @@ export const decorativeCircleSettings = {
   tubularSegments: 64,
 };
 
-const decorativeCircleGeometry = new THREE.TorusGeometry(
-  decorativeCircleSettings.radius,
-  decorativeCircleSettings.tube,
-  decorativeCircleSettings.radialSegments,
-  decorativeCircleSettings.tubularSegments,
-);
-
-export const decorativeCircle = new THREE.Mesh(decorativeCircleGeometry, decorativeCircleMaterial);
-decorativeCircle.name = "decorativeCircle";
-decorativeCircle.rotation.x = Math.PI; // Face forward
-decorativeCircle.position.set(0, getWooferY(), getFrontZ() + bevelSettings.bevelThickness);
-
-// Woofer rubber surround (torus ring)
-const surroundGeometry = new THREE.TorusGeometry(
-  wooferSettings.surroundRadius,
-  wooferSettings.surroundTube,
-  wooferSettings.torusRadialSegments,
-  wooferSettings.torusTubularSegments,
-);
-export const wooferSurround = new THREE.Mesh(surroundGeometry, surroundMaterial);
-wooferSurround.name = "wooferSurround";
-wooferSurround.castShadow = true;
-wooferSurround.rotation.x = -Math.PI; // rotate to face forward
-wooferSurround.position.set(0, getWooferY(), getFrontZ());
-
-// Woofer cone (bronze hemisphere) - radius matches surround inner hole
-const coneHemisphereGeometry = new THREE.SphereGeometry(
-  getConeRadius(),
-  wooferSettings.coneSegments,
-  wooferSettings.coneRings,
-  0,
-  Math.PI * 2,
-  0,
-  Math.PI / 2, // hemisphere (half sphere)
-);
-applyPlanarUVsToHemisphere(coneHemisphereGeometry, getConeRadius());
-
-export const wooferCone = new THREE.Mesh(coneHemisphereGeometry, coneMaterial);
-wooferCone.name = "wooferCone";
-wooferCone.castShadow = true;
-wooferCone.rotation.x = -Math.PI / 2; // rotate hemisphere to face forward
-wooferCone.position.set(0, getWooferY(), getFrontZ() + wooferSettings.coneProtrusion);
+// ═══════════════════════════════════════════════════════════════════════════
+// WOOFER FACTORY
+// ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Debug tube (red wireframe cylinder).
+ * Creates a woofer group with all components at the specified Y position.
+ * The group contains: decorative circle, rubber surround, cone, and debug tube.
+ * All components are positioned relative to the group, which is then positioned
+ * at the correct Y height on the speaker.
  *
- * This cylinder visualizes the exact shape used for CSG subtraction in both
- * the grille and cabinet. The cone hole cylinder creates a clean circular hole
- * where the woofer cone (bronze hemisphere) will be placed.
- *
- * - Radius = getConeRadius() = surroundRadius - surroundTube (inner hole of surround)
- * - Positioned at the speaker front face
- * - Aligned with Z axis (pointing forward)
+ * @param {number} yFromBottom - Distance from bottom of speaker (in scene units)
+ * @param {number} index - Woofer index for naming
+ * @returns {THREE.Group} Complete woofer assembly
  */
-const debugTubeGeometry = new THREE.CylinderGeometry(
-  coneHoleCylinder.radius,
-  coneHoleCylinder.radius,
-  coneHoleCylinder.height,
-  coneHoleCylinder.segments,
-);
-export const debugTube = new THREE.Mesh(debugTubeGeometry, debugTubeMaterial);
-debugTube.visible = false;
-debugTube.name = "debugTube";
-debugTube.rotation.x = Math.PI / 2; // align with Z axis (cylinder default is Y)
-debugTube.position.set(0, getWooferY(), getFrontZ());
-
-// Speaker group (combines all parts)
-export const speaker = new THREE.Group();
-speaker.name = "speaker";
-speaker.add(cabinet, grille, wooferSurround, wooferCone, decorativeCircle, debugTube);
-speaker.userData.bevelSettings = bevelSettings;
-scene.add(speaker);
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PUBLIC API
-// ═══════════════════════════════════════════════════════════════════════════
-
-/** Rebuild all speaker geometries (call after changing settings) */
-export function rebuildGrille() {
-  const wooferY = getWooferY();
+function createWooferGroup(yFromBottom, index) {
+  const wooferY = getWooferY(yFromBottom);
   const frontZ = getFrontZ();
 
-  // Rebuild cabinet with holes
-  cabinet.geometry.dispose();
-  cabinet.geometry = createCabinetWithHole();
+  // Create group for this woofer assembly
+  const wooferGroup = new THREE.Group();
+  wooferGroup.name = `woofer_${index}`;
+  wooferGroup.userData.yFromBottom = yFromBottom;
 
-  // Rebuild grille with holes
-  grille.geometry.dispose();
-  grille.geometry = createGrilleWithHole();
+  // Decorative circle
+  const decorativeCircleGeometry = new THREE.TorusGeometry(
+    decorativeCircleSettings.radius,
+    decorativeCircleSettings.tube,
+    decorativeCircleSettings.radialSegments,
+    decorativeCircleSettings.tubularSegments,
+  );
+  const decorativeCircle = new THREE.Mesh(decorativeCircleGeometry, decorativeCircleMaterial);
+  decorativeCircle.name = "decorativeCircle";
+  decorativeCircle.rotation.x = Math.PI;
+  decorativeCircle.position.set(0, wooferY, frontZ + bevelSettings.bevelThickness);
+  wooferGroup.add(decorativeCircle);
 
-  // Update woofer surround
-  wooferSurround.geometry.dispose();
-  wooferSurround.geometry = new THREE.TorusGeometry(
+  // Rubber surround (torus ring)
+  const surroundGeometry = new THREE.TorusGeometry(
     wooferSettings.surroundRadius,
     wooferSettings.surroundTube,
     wooferSettings.torusRadialSegments,
     wooferSettings.torusTubularSegments,
   );
+  const wooferSurround = new THREE.Mesh(surroundGeometry, surroundMaterial);
+  wooferSurround.name = "wooferSurround";
+  wooferSurround.castShadow = true;
+  wooferSurround.rotation.x = -Math.PI;
   wooferSurround.position.set(0, wooferY, frontZ);
+  wooferGroup.add(wooferSurround);
 
-  // Update woofer cone - radius matches surround inner hole
-  wooferCone.geometry.dispose();
-  wooferCone.geometry = new THREE.SphereGeometry(
+  // Cone (bronze hemisphere) - radius matches surround inner hole
+  const coneHemisphereGeometry = new THREE.SphereGeometry(
     getConeRadius(),
     wooferSettings.coneSegments,
     wooferSettings.coneRings,
@@ -438,26 +408,131 @@ export function rebuildGrille() {
     0,
     Math.PI / 2,
   );
-  applyPlanarUVsToHemisphere(wooferCone.geometry, getConeRadius());
+  applyPlanarUVsToHemisphere(coneHemisphereGeometry, getConeRadius());
+  const wooferCone = new THREE.Mesh(coneHemisphereGeometry, coneMaterial);
+  wooferCone.name = "wooferCone";
+  wooferCone.castShadow = true;
+  wooferCone.rotation.x = -Math.PI / 2;
   wooferCone.position.set(0, wooferY, frontZ + wooferSettings.coneProtrusion);
+  wooferGroup.add(wooferCone);
 
-  // Update debug tube - radius matches cone (surround inner hole)
-  debugTube.geometry.dispose();
-  debugTube.geometry = new THREE.CylinderGeometry(
+  // Debug tube (red wireframe cylinder for CSG visualization)
+  const debugTubeGeometry = new THREE.CylinderGeometry(
     coneHoleCylinder.radius,
     coneHoleCylinder.radius,
     coneHoleCylinder.height,
     coneHoleCylinder.segments,
   );
+  const debugTube = new THREE.Mesh(debugTubeGeometry, debugTubeMaterial);
+  debugTube.visible = false;
+  debugTube.name = "debugTube";
+  debugTube.rotation.x = Math.PI / 2;
   debugTube.position.set(0, wooferY, frontZ);
+  wooferGroup.add(debugTube);
+
+  // Store references for GUI access
+  wooferGroup.userData.decorativeCircle = decorativeCircle;
+  wooferGroup.userData.wooferSurround = wooferSurround;
+  wooferGroup.userData.wooferCone = wooferCone;
+  wooferGroup.userData.debugTube = debugTube;
+
+  return wooferGroup;
+}
+
+/**
+ * Array of woofer groups. Each woofer is a complete assembly that can be
+ * controlled together. The speaker has multiple woofers at different heights.
+ */
+export const woofers = wooferPositions.map((pos, index) => createWooferGroup(pos.yFromBottom, index));
+
+// Export first woofer's components for backwards compatibility with GUI
+export const decorativeCircle = woofers[0].userData.decorativeCircle;
+export const wooferSurround = woofers[0].userData.wooferSurround;
+export const wooferCone = woofers[0].userData.wooferCone;
+export const debugTube = woofers[0].userData.debugTube;
+
+// Speaker group (combines all parts)
+export const speaker = new THREE.Group();
+speaker.name = "speaker";
+speaker.add(cabinet, grille, ...woofers);
+speaker.userData.bevelSettings = bevelSettings;
+scene.add(speaker);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC API
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Rebuild geometries for a single woofer group.
+ * @param {THREE.Group} wooferGroup - The woofer group to rebuild
+ */
+function rebuildWooferGroup(wooferGroup) {
+  const yFromBottom = wooferGroup.userData.yFromBottom;
+  const wooferY = getWooferY(yFromBottom);
+  const frontZ = getFrontZ();
+
+  const decCircle = wooferGroup.userData.decorativeCircle;
+  const surround = wooferGroup.userData.wooferSurround;
+  const cone = wooferGroup.userData.wooferCone;
+  const tube = wooferGroup.userData.debugTube;
 
   // Update decorative circle
-  decorativeCircle.geometry.dispose();
-  decorativeCircle.geometry = new THREE.TorusGeometry(
+  decCircle.geometry.dispose();
+  decCircle.geometry = new THREE.TorusGeometry(
     decorativeCircleSettings.radius,
     decorativeCircleSettings.tube,
     decorativeCircleSettings.radialSegments,
     decorativeCircleSettings.tubularSegments,
   );
-  decorativeCircle.position.set(0, wooferY, frontZ + bevelSettings.bevelSize);
+  decCircle.position.set(0, wooferY, frontZ + bevelSettings.bevelThickness);
+
+  // Update woofer surround
+  surround.geometry.dispose();
+  surround.geometry = new THREE.TorusGeometry(
+    wooferSettings.surroundRadius,
+    wooferSettings.surroundTube,
+    wooferSettings.torusRadialSegments,
+    wooferSettings.torusTubularSegments,
+  );
+  surround.position.set(0, wooferY, frontZ);
+
+  // Update woofer cone - radius matches surround inner hole
+  cone.geometry.dispose();
+  cone.geometry = new THREE.SphereGeometry(
+    getConeRadius(),
+    wooferSettings.coneSegments,
+    wooferSettings.coneRings,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2,
+  );
+  applyPlanarUVsToHemisphere(cone.geometry, getConeRadius());
+  cone.position.set(0, wooferY, frontZ + wooferSettings.coneProtrusion);
+
+  // Update debug tube - radius matches cone (surround inner hole)
+  tube.geometry.dispose();
+  tube.geometry = new THREE.CylinderGeometry(
+    coneHoleCylinder.radius,
+    coneHoleCylinder.radius,
+    coneHoleCylinder.height,
+    coneHoleCylinder.segments,
+  );
+  tube.position.set(0, wooferY, frontZ);
+}
+
+/** Rebuild all speaker geometries (call after changing settings) */
+export function rebuildGrille() {
+  // Rebuild cabinet with holes for all woofers
+  cabinet.geometry.dispose();
+  cabinet.geometry = createCabinetWithHole();
+
+  // Rebuild grille with holes for all woofers
+  grille.geometry.dispose();
+  grille.geometry = createGrilleWithHole();
+
+  // Rebuild each woofer group
+  for (const wooferGroup of woofers) {
+    rebuildWooferGroup(wooferGroup);
+  }
 }

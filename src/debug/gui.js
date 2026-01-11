@@ -3,7 +3,6 @@ import {
   bevelSettings,
   cabinet,
   coneMaterial,
-  debugTube,
   decorativeCircle,
   decorativeCircleMaterial,
   decorativeCircleSettings,
@@ -14,8 +13,10 @@ import {
   speaker,
   surroundMaterial,
   wooferCone,
+  wooferPositions,
   wooferSettings,
   wooferSurround,
+  woofers,
 } from "../objects/speaker.js";
 
 import GUI from "lil-gui";
@@ -41,7 +42,14 @@ speakerTweaks.add(speaker.rotation, "y").min(-Math.PI).max(Math.PI).step(0.01).n
 speakerTweaks.add(speaker, "visible").name("visible");
 speakerTweaks.add(cabinet, "visible").name("cabinet visible");
 speakerTweaks.add(grille, "visible").name("grille visible");
-speakerTweaks.add(debugTube, "visible").name("debug tube");
+
+// Toggle debug tube on all woofers
+const debugTubeState = { visible: false };
+speakerTweaks.add(debugTubeState, "visible").name("debug tubes").onChange((value) => {
+  for (const woofer of woofers) {
+    woofer.userData.debugTube.visible = value;
+  }
+});
 
 const debug = { wireframe: false };
 speakerTweaks.add(debug, "wireframe").onChange((value) => {
@@ -61,10 +69,9 @@ grilleTweaks.add(bevelSettings, "bevelThickness").min(0).max(0.3).step(0.01).onC
 grilleTweaks.add(bevelSettings, "bevelSize").min(0).max(0.3).step(0.01).onChange(rebuildGrille);
 grilleTweaks.add(bevelSettings, "bevelSegments").min(1).max(10).step(1).onChange(rebuildGrille);
 
-// Woofer tweaks
+// Woofer tweaks (shared settings for all woofers)
 const wooferTweaks = gui.addFolder("Woofer");
 wooferTweaks.add(wooferSettings, "radius").min(0.1).max(1.5).step(0.01).name("radius").onChange(rebuildGrille);
-wooferTweaks.add(wooferSettings, "yFromBottom").min(0.5).max(8).step(0.1).name("Y from bottom").onChange(rebuildGrille);
 wooferTweaks.add(wooferSettings, "protrusion").min(0).max(1).step(0.01).name("protrusion").onChange(rebuildGrille);
 wooferTweaks.add(wooferSettings, "sphereSegments").min(16).max(128).step(8).name("segments").onChange(rebuildGrille);
 wooferTweaks
@@ -81,9 +88,6 @@ wooferTweaks
   .step(0.01)
   .name("surround tube")
   .onChange(rebuildGrille);
-wooferTweaks.add(wooferSurround.rotation, "x").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot X");
-wooferTweaks.add(wooferSurround.rotation, "y").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot Y");
-wooferTweaks.add(wooferSurround.rotation, "z").min(-Math.PI).max(Math.PI).step(0.01).name("surround rot Z");
 // Note: cone radius is derived from surroundRadius - surroundTube (inner hole of surround)
 wooferTweaks
   .add(wooferSettings, "coneProtrusion")
@@ -92,9 +96,20 @@ wooferTweaks
   .step(0.01)
   .name("cone protrusion")
   .onChange(rebuildGrille);
-wooferTweaks.add(wooferCone.position, "x").min(-1).max(1).step(0.01).name("cone pos X");
-wooferTweaks.add(wooferCone.position, "y").min(-5).max(5).step(0.01).name("cone pos Y");
-wooferTweaks.add(wooferCone.position, "z").min(0).max(5).step(0.01).name("cone pos Z");
+
+// Individual woofer positions
+wooferPositions.forEach((pos, index) => {
+  wooferTweaks
+    .add(pos, "yFromBottom")
+    .min(0.5)
+    .max(8)
+    .step(0.1)
+    .name(`woofer ${index + 1} Y`)
+    .onChange(() => {
+      woofers[index].userData.yFromBottom = pos.yFromBottom;
+      rebuildGrille();
+    });
+});
 
 // Decorative circle tweaks
 const decorativeTweaks = gui.addFolder("Decorative Circle");
