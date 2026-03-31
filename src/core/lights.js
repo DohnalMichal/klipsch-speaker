@@ -11,7 +11,7 @@ loader.load("/hdr/neon_photostudio_4k.hdr", (hdr) => {
   scene.background = null;
 });
 
-export const ambientLight = new THREE.AmbientLight(0xffffff, 3.2);
+export const ambientLight = new THREE.AmbientLight(0xffffff, 4);
 scene.add(ambientLight);
 
 export const directionalLight = new THREE.DirectionalLight(0xffffff, 3.6);
